@@ -42,6 +42,21 @@ refuse_button = WebDriverWait(driver, 10).until(
 
 refuse_button.click()
 
-print("Авторизация завершена!")
-time.sleep(10)
-#driver.quit()
+def append_db(subj, mark): # TODO: дописать работу с БД
+    pass
+
+def get_grades():
+    grades_table = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.CLASS_NAME, "db_day"))
+    )
+    rows = grades_table.find_elements(By.TAG_NAME, "tr")
+    for row in rows:
+        mark = row.find_element(By.CLASS_NAME, "mark")
+        mark_num = mark.text.strip()
+        if mark_num:
+            subj = row.find_element(By.CLASS_NAME, "lesson")
+            subj_txt = mark.text.strip()
+            append_db(subj_txt, mark_num)
+
+
+driver.quit()
