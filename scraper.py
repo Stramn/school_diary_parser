@@ -5,7 +5,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
@@ -18,10 +17,8 @@ PASSWORD = os.getenv("PASSWORD")
 # Настройка Chrome через webdriver-manager
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 
-# Открываем сайт
 driver.get("https://schools.by/login")
 
-# Даём время странице загрузиться
 time.sleep(2)
 
 # Вводим логин и пароль
@@ -42,21 +39,27 @@ refuse_button = WebDriverWait(driver, 10).until(
 
 refuse_button.click()
 
-def append_db(subj, mark): # TODO: дописать работу с БД
-    pass
-
-def get_grades():
+def get_grades_from_page(driver):
+    results = []
     grades_table = WebDriverWait(driver, 10).until(
     EC.presence_of_element_located((By.CLASS_NAME, "db_day"))
     )
     rows = grades_table.find_elements(By.TAG_NAME, "tr")
     for row in rows:
+        mark_cells = row.find_elements(By.CLASS_NAME, "mark")
+        if not mark_cells:
+            continue
         mark = row.find_element(By.CLASS_NAME, "mark")
         mark_num = mark.text.strip()
         if mark_num:
             subj = row.find_element(By.CLASS_NAME, "lesson")
-            subj_txt = mark.text.strip()
-            append_db(subj_txt, mark_num)
+            subj_txt = subj.text.strip()
+            results.append({"subject": subj_txt, "mark": mark_num})
+    print(results) # проверка работоспособности
 
+def append_csv(res): # TODO: дописать работу с CSV
+    pass
+
+print(get_grades_from_page(driver))
 
 driver.quit()
