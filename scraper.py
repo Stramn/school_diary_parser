@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import random
-import csv
+import json
 from pathlib import Path
 
 # === Настройка Chrome с маскировкой ===
@@ -112,34 +112,10 @@ def get_grades_from_page(driver, results):
         return(results)
 
 
-def append_csv(res):
-    filename = "marks.csv"
-    delimiter = ";"
-
-    # Шаг 1. Загружаем старые данные, если файл есть
-    existing = {}
-    if os.path.exists(filename):
-        with open(filename, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f, delimiter=delimiter)
-            for row in reader:
-                subject = row["subject"]
-                marks = [m.strip() for m in row["marks"].split(",") if m.strip()]
-                existing[subject] = marks
-
-    # Шаг 2. Объединяем старые и новые оценки
-    for subject, new_marks in res.items():
-        old_marks = existing.get(subject, [])
-        combined = old_marks + [m for m in new_marks if m not in old_marks]
-        existing[subject] = combined
-
-    # Шаг 3. Перезаписываем файл (создастся, если не существует)
-    with open(filename, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["subject", "marks"], delimiter=delimiter)
-        writer.writeheader()
-        for subject, marks in existing.items():
-            writer.writerow({"subject": subject, "marks": ",".join(marks)})
-
-    print(f"✅ CSV обновлён ({filename})")
+def write_json(res):
+    filename = "marks.json"
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(res, f, ensure_ascii=False, indent=2)
 
 
 time.sleep(random.uniform(10, 20))
