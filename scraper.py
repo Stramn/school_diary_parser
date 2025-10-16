@@ -19,6 +19,8 @@ options = webdriver.ChromeOptions()
 options.add_argument("--disable-blink-features=AutomationControlled")
 options.add_experimental_option("excludeSwitches", ["enable-automation"])
 options.add_experimental_option("useAutomationExtension", False)
+options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
 
 profile_dir = Path.cwd() / "chrome_profile"
 profile_dir.mkdir(parents=True, exist_ok=True)
@@ -80,36 +82,54 @@ results = {
     }
 
 def get_grades_from_page(driver, results):
-    grades_table = WebDriverWait(driver, 10).until(
-    EC.presence_of_element_located((By.CLASS_NAME, "db_day"))
+    # Находим все дни (все таблицы с расписанием)
+    days = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.CLASS_NAME, "db_day"))
     )
-    rows = grades_table.find_elements(By.TAG_NAME, "tr")
-    for row in rows:
-        mark_cells = row.find_elements(By.CLASS_NAME, "mark")
-        if not mark_cells:
-            continue
-        # оценка заключена в <strong>, ищем его
-        strong_tags = mark_cells[0].find_elements(By.TAG_NAME, "strong")
-
-        if strong_tags:
-            mark_num = strong_tags[0].text.strip()
-        else:
-            mark_num = mark_cells[0].text.strip()
-
-        # если и strong, и text пустые — пропускаем
-        if not mark_num:
-            continue
-        subj = row.find_element(By.CLASS_NAME, "lesson")
-        # первые два символа в назве предмета - номер => отсекаем
-        subj_txt = subj.text[2:].replace(" ", "").strip()
-        if subj_txt in results:
-            results[subj_txt].append(mark_num)
-        else:
-            # что за клоунада с эмодзи в терминале?
-            # print(f"⚠️ Неизвестный предмет: {subj_txt} (оценка {mark_num})") 
-            print(f"\033[33mНеизвестный предмет: {subj_txt}\033[0m (оценка {mark_num})")
-            # так то лучше
-        return(results)
+    
+    found = False
+    
+    for day in days:
+        # Для каждого дня находим все строки таблицы
+        rows = day.find_elements(By.TAG_NAME, "tr")
+        
+        for row in rows:
+            # Пропускаем строки заголовков
+            if row.find_elements(By.TAG_NAME, "th"):
+                continue
+                
+            # Ищем ячейку с оценкой
+            mark_cell = row.find_element(By.CLASS_NAME, "mark")
+            
+            # Ищем оценку внутри mark_box
+            mark_box = mark_cell.find_element(By.CLASS_NAME, "mark_box")
+            strong_tags = mark_box.find_elements(By.TAG_NAME, "strong")
+            
+            if strong_tags:
+                mark_num = strong_tags[0].text.strip()
+                
+                # Если нашли оценку, ищем предмет
+                if mark_num:
+                    lesson_cell = row.find_element(By.CLASS_NAME, "lesson")
+                    # Извлекаем текст предмета (убираем номер урока)
+                    lesson_text = lesson_cell.text.strip()
+                    # Убираем цифру и точку в начале
+                    subj_txt = lesson_text.split('.', 1)[1].strip() if '.' in lesson_text else lesson_text
+                    # Нормализуем название предмета
+                    subj_txt = subj_txt.replace(" ", "")
+                    
+                    if subj_txt in results:
+                        results[subj_txt].append(mark_num)
+                        found = True
+                        print(f"Найдена оценка: {subj_txt} - {mark_num}")
+                    else:
+                        print(f"\033[33mНеизвестный предмет: {subj_txt}\033[0m (оценка {mark_num})")
+    
+    if found:
+        return results
+    else:
+        print("\033[31mОценок не найдено\033[0m")
+        return None
 
 
 def write_json(res):
@@ -117,6 +137,12 @@ def write_json(res):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(res, f, ensure_ascii=False, indent=2)
 
+time.sleep(2)
+
+if driver.current_url == "https://schools.by/login":
+    log_in(driver)
+
+print(get_grades_from_page(driver, results)) # тест
 
 time.sleep(random.uniform(10, 20))
 
