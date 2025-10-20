@@ -137,9 +137,11 @@ def get_grades_from_page(driver, results):
                         found = True
                         if '/' in mark_num:
                             for m in mark_num.split('/'):
-                                results[subj_txt].append(m.strip())
-                                print(f"Найдена оценка: {subj_txt} - {m.strip()}")
+                                m = int(m) 
+                                results[subj_txt].append(m)
+                                print(f"Найдена оценка: {subj_txt} - {m}")
                         else:
+                            mark_num = int(mark_num)
                             results[subj_txt].append(mark_num)
                             print(f"Найдена оценка: {subj_txt} - {mark_num}")
                     else:
