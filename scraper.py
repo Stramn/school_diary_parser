@@ -134,9 +134,14 @@ def get_grades_from_page(driver, results):
                     subj_txt = subj_txt.replace(" ", "")
                     
                     if subj_txt in results:
-                        results[subj_txt].append(mark_num)
                         found = True
-                        print(f"Найдена оценка: {subj_txt} - {mark_num}")
+                        if '/' in mark_num:
+                            for m in mark_num.split('/'):
+                                results[subj_txt].append(m.strip())
+                                print(f"Найдена оценка: {subj_txt} - {m.strip()}")
+                        else:
+                            results[subj_txt].append(mark_num)
+                            print(f"Найдена оценка: {subj_txt} - {mark_num}")
                     else:
                         print(f"\033[33mНеизвестный предмет: {subj_txt}\033[0m (оценка {mark_num})")
     
