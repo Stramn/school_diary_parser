@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import time
 import random
 import json
@@ -66,7 +67,7 @@ def log_in(driver):
 results = {
     "Матем.": [],
     "ДП/МП": [],
-    "Ист.Бел.вкон.всем.ист": [],
+    "Ист.Бел.вкон.всем.ист.": [],
     "Физика": [],
     "Англ.яз.": [],
     "Физ.к.и.зд.": [],
@@ -81,14 +82,28 @@ results = {
     "Черчение": []
     }
 
+def get_visible_week(driver):
+    try: # получаем активную неделю по стилю и классу
+        week_element = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".db_week:not([style])"))
+        )
+    except TimeoutException:
+        week_element = driver.find_element(By.CLASS_NAME, "db_week")
+    return week_element
+
+
 def get_grades_from_page(driver, results):
-    # Находим все дни (все таблицы с расписанием)
-    days = WebDriverWait(driver, 10).until(
-        EC.presence_of_all_elements_located((By.CLASS_NAME, "db_day"))
-    )
-    
+    week_element = get_visible_week(driver)
+    try:
+        date_text = week_element.find_element(By.CLASS_NAME, "db_period").text.strip()
+    except NoSuchElementException:
+        date_text = "\033[31mНеизвестная дата\033[0m"
+
     found = False
-    
+    days = WebDriverWait(week_element, 10).until(
+    lambda w: w.find_elements(By.CLASS_NAME, "db_day") or False
+    )
+    print(f"\033[35mОбрабатываемая неделя: {date_text}\033[0m")
     for day in days:
         # Для каждого дня находим все строки таблицы
         rows = day.find_elements(By.TAG_NAME, "tr")
@@ -128,21 +143,64 @@ def get_grades_from_page(driver, results):
     if found:
         return results
     else:
-        print("\033[31mОценок не найдено\033[0m")
+        print("\033[33mОценок не найдено\033[0m")
         return None
+
+
+def go_to_prev_page(driver):
+    week_element = get_visible_week(driver)
+    try:
+        prev_button = week_element.find_element(By.CLASS_NAME, "prev")
+    except NoSuchElementException:
+        print("\033[32mЧетверть собрана\033[0m")
+        return False
+
+    old_week = get_visible_week(driver)
+    old_week_text = old_week.find_element(By.CLASS_NAME, "db_period").text
+
+    prev_button.click()
+
+    try:
+        WebDriverWait(driver, 10).until(
+            lambda d: get_visible_week(d).find_element(By.CLASS_NAME, "db_period").text != old_week_text
+        )
+    except TimeoutException:
+        print("\033[31mНеделя не была сменена\033[0m")
+        return False
+
+    new_week = get_visible_week(driver)
+    new_week_text = new_week.find_element(By.CLASS_NAME, "db_period").text
+    print(f"\033[36mПереключились на неделю: {new_week_text}\033[0m")
+    return True
+
 
 
 def write_json(res):
     filename = "marks.json"
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(res, f, ensure_ascii=False, indent=2)
+    return res
 
-time.sleep(2)
+time.sleep(2) # время для прогрузки страницы и редиректа на страницу ученика
 
+# при попытке зайти на страницу логина, если юзер зареган - сайт перенаправляет на личную страницу ученика
 if driver.current_url == "https://schools.by/login":
     log_in(driver)
+    time.sleep(2)
 
-print(get_grades_from_page(driver, results)) # тест
+# скролл до класса недели
+schedule_container = driver.find_element(By.CLASS_NAME, "db_week")
+driver.execute_script("arguments[0].scrollIntoView(true);", schedule_container)
+
+time.sleep(0.5)
+
+# рассматривает макс. 12 недель. break - если дошёл до первой в четверти
+for i in range(12):
+    get_grades_from_page(driver, results)
+    time.sleep(random.uniform(0.5, 1.2))
+    if not go_to_prev_page(driver):
+        break
+    print("-" * 50)
 
 time.sleep(random.uniform(10, 20))
 
