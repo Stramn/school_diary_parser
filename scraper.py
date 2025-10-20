@@ -207,6 +207,7 @@ for i in range(12):
         break
     print("-" * 50)
 
-time.sleep(random.uniform(10, 20))
+write_json(results)
 
+time.sleep(random.uniform(10, 20))
 driver.quit()

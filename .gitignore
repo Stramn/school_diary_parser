@@ -5,6 +5,7 @@ cookies.pkl
 webdriver.log 
 .gitignore
 chrome_profile/
+marks.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
