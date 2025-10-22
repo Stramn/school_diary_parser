@@ -211,5 +211,5 @@ for i in range(12):
 
 write_json(results)
 
-time.sleep(random.uniform(10, 20))
+time.sleep(random.uniform(5, 10))
 driver.quit()
