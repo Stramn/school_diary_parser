@@ -42,7 +42,7 @@ driver.get("https://schools.by/login")
 
 def log_in(driver):
     # Загружаем логин и пароль из .env
-    load_dotenv()
+    load_dotenv(os.path.join(os.getcwd(), ".env"))
     LOGIN = os.getenv("LOGIN")
     PASSWORD = os.getenv("PASSWORD")
     time.sleep(random.uniform(2.5, 4.5))
