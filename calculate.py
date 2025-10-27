@@ -1,7 +1,12 @@
 import json
+import os, sys
 
 # Файл с оценками
-MARKS_FILE = "marks.json"
+if getattr(sys, 'frozen', False):  # если запущено как .exe
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MARKS_FILE = os.path.join(BASE_DIR, "marks.json")
 
 # Список предметов, за которые оценка считается за полугодие
 half_year_subjects = ["ДП/МП", "Обществов.", "География", "Черчение"]
@@ -39,4 +44,5 @@ def main():
 
     print("Средняя оценка:", round(calculate_average(avgs), 2))
 
-main()
+if __name__ == "__main__":
+    main()

@@ -1,4 +1,4 @@
-import os
+import os, sys
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -12,6 +12,7 @@ import time
 import random
 import json
 from pathlib import Path
+import calculate
 
 # === Настройка Chrome с маскировкой ===
 options = webdriver.ChromeOptions()
@@ -22,27 +23,14 @@ options.add_experimental_option("excludeSwitches", ["enable-automation"])
 options.add_experimental_option("useAutomationExtension", False)
 options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
-
 profile_dir = Path.cwd() / "chrome_profile"
 profile_dir.mkdir(parents=True, exist_ok=True)
 options.add_argument(f"--user-data-dir={str(profile_dir)}")
 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-# Скрытие признаков Selenium в JavaScript
-driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-    "source": """
-        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4]});
-        Object.defineProperty(navigator, 'languages', {get: () => ['ru-RU', 'ru']});
-    """
-})
-
-driver.get("https://schools.by/login")
 
 def log_in(driver):
     # Загружаем логин и пароль из .env
-    load_dotenv(os.path.join(os.getcwd(), ".env"))
+    load_dotenv(os.path.join(os.getcwd(), ".env.txt"))
     LOGIN = os.getenv("LOGIN")
     PASSWORD = os.getenv("PASSWORD")
     time.sleep(random.uniform(2.5, 4.5))
@@ -181,35 +169,54 @@ def go_to_prev_page(driver):
     return True
 
 
-
 def write_json(res):
-    filename = "marks.json"
+    if getattr(sys, 'frozen', False):  # если запущено как .exe
+        BASE_DIR = os.path.dirname(sys.executable)
+    else:
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    filename = os.path.join(BASE_DIR, "marks.json")
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(res, f, ensure_ascii=False, indent=2)
     return res
 
-time.sleep(2) # время для прогрузки страницы и редиректа на страницу ученика
 
-# при попытке зайти на страницу логина, если юзер зареган - сайт перенаправляет на личную страницу ученика
-if driver.current_url == "https://schools.by/login":
-    log_in(driver)
-    time.sleep(2)
+if __name__ == "__main__":
+    # инициализация хрома
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-# скролл до класса недели
-schedule_container = driver.find_element(By.CLASS_NAME, "db_week")
-driver.execute_script("arguments[0].scrollIntoView(true);", schedule_container)
+    # Скрытие признаков Selenium в JavaScript
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        "source": """
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4]});
+            Object.defineProperty(navigator, 'languages', {get: () => ['ru-RU', 'ru']});
+        """
+    })
 
-time.sleep(0.5)
+    driver.get("https://schools.by/login")
 
-# рассматривает макс. 12 недель. break - если дошёл до первой в четверти
-for i in range(12):
-    get_grades_from_page(driver, results)
-    time.sleep(random.uniform(0.5, 1.2))
-    if not go_to_prev_page(driver):
-        break
-    print("-" * 50)
+    time.sleep(2) # время для прогрузки страницы и редиректа на страницу ученика
 
-write_json(results)
+    # при попытке зайти на страницу логина, если юзер зареган - сайт перенаправляет на личную страницу ученика
+    if driver.current_url == "https://schools.by/login":
+        log_in(driver)
+        time.sleep(2)
 
-time.sleep(random.uniform(5, 10))
-driver.quit()
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "db_week"))
+    )
+    schedule_container = driver.find_element(By.CLASS_NAME, "db_week")
+    driver.execute_script("arguments[0].scrollIntoView(true);", schedule_container)
+    time.sleep(0.5)
+
+    for i in range(12):
+        get_grades_from_page(driver, results)
+        time.sleep(random.uniform(0.5, 1.2))
+        if not go_to_prev_page(driver):
+            break
+        print("-" * 50)
+
+    write_json(results)
+    time.sleep(random.uniform(5, 10))
+    driver.quit()
+    calculate.main()
