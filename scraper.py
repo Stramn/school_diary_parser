@@ -220,3 +220,6 @@ if __name__ == "__main__":
     time.sleep(random.uniform(5, 10))
     driver.quit()
     calculate.main()
+    print("Программа выполнена")
+    # Окно не закроется пока пользователь не нажмет Enter
+    input("Нажмите Enter для выхода...")
