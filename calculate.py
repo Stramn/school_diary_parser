@@ -23,22 +23,21 @@ def main():
 
     avgs = []
 
-
+    print("\033[36mСредние отметки по предметам:\033[0m")
     for subject, grades in data.items():
         if not grades:
-            print(f"{subject}: нет оценок")
+            print(f"\033[33m{subject}: нет оценок\033[0m")
             continue
 
         average = calculate_average(grades)
         grades_count = len(grades)
-
         if grades_count < 4 and subject not in half_year_subjects:
             # выводим среднюю с двумя знаками после запятой
-            print(f"{subject}: {average:.2f} — неаттестация")
+            print(f"\033[32m{subject}: {average:.2f}\033[0m — \033[33mнеаттестация\033[0m")
         elif grades_count < 6 and subject in half_year_subjects:
-            print(f"{subject}: {average:.2f} — неаттестация")
+            print(f"\033[32m{subject}: {average:.2f}\033[0m — \033[33mнеаттестация\033[0m")
         else:
-            print(f"{subject}: {average:.2f}")
+            print(f"\033[32m{subject}: {average:.2f}\033[0m")
         if subject not in ["ДП/МП", "Физ.к.и.зд."]:
             avgs.append(average)
 

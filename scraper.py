@@ -153,7 +153,7 @@ def go_to_prev_page(driver):
     try:
         prev_button = week_element.find_element(By.CLASS_NAME, "prev")
     except NoSuchElementException:
-        print("\033[32mЧетверть собрана\033[0m")
+        print("\033[34mЧетверть собрана\033[0m")
         return False
 
     old_week = get_visible_week(driver)
