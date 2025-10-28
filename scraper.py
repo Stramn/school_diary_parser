@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 import calculate
 
-# === Настройка Chrome с маскировкой ===
+# Настройка Chrome с маскировкой
 options = webdriver.ChromeOptions()
 
 # Имитация обычного браузера
@@ -30,12 +30,17 @@ options.add_argument(f"--user-data-dir={str(profile_dir)}")
 
 def log_in(driver):
     # Загружаем логин и пароль из .env
-    load_dotenv(os.path.join(os.getcwd(), ".env.txt"))
+    load_dotenv(os.path.join(os.getcwd(), "default.env.txt"))
     LOGIN = os.getenv("LOGIN")
     PASSWORD = os.getenv("PASSWORD")
     time.sleep(random.uniform(2.5, 4.5))
     # Вводим логин и пароль
-    username_input = driver.find_element(By.ID, "id_username")
+    try:
+        username_input = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "id_username"))
+        )
+    except TimeoutException:
+        print("\033[31mНе удалось найти поле логина/пароля\033[0m")
     password_input = driver.find_element(By.ID, "id_password")
     username_input.send_keys(LOGIN)
     time.sleep(random.uniform(0.5, 1.5))
@@ -221,6 +226,6 @@ if __name__ == "__main__":
     time.sleep(random.uniform(5, 10))
     driver.quit()
     calculate.main()
-    print("Программа выполнена")
+    print("\033[32mПрограмма выполнена\033[0m")
     # Окно не закроется пока пользователь не нажмет Enter
-    input("Нажмите Enter для выхода...")
+    input("\033[35mНажмите Enter для выхода...\033[0m")

@@ -42,7 +42,7 @@ def main():
         if subject not in ["ДП/МП", "Физ.к.и.зд."]:
             avgs.append(average)
 
-    print("Средняя оценка:", round(calculate_average(avgs), 2))
+    print("\033[36mСредняя оценка:\033[0m", round(calculate_average(avgs), 2))
 
 if __name__ == "__main__":
     main()
