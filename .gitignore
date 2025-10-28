@@ -6,6 +6,7 @@ webdriver.log
 .gitignore
 chrome_profile/
 marks.json
+school_diary_parser_test/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
