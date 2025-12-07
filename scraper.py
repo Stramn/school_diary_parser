@@ -86,7 +86,11 @@ def get_visible_week(driver):
     return week_element
 
 
-def get_grades_from_page(driver, results):
+def get_grades_from_page(driver, results, unique_subj=None):
+    is_ts_half_year = unique_subj is not None
+    if unique_subj is None:  # по умолчанию список для сверки равен итоговому словарю, но если мы проверяем полугодовые, то сверяем по уникальным оценкам
+        # если список не передали — сверяем по results
+        unique_subj = results
     week_element = get_visible_week(driver)
     try:
         date_text = week_element.find_element(By.CLASS_NAME, "db_period").text.strip()
@@ -127,7 +131,7 @@ def get_grades_from_page(driver, results):
                     # Нормализуем название предмета
                     subj_txt = subj_txt.replace(" ", "")
                     
-                    if subj_txt in results:
+                    if subj_txt in unique_subj:
                         found = True
                         if '/' in mark_num:
                             for m in mark_num.split('/'):
@@ -138,6 +142,9 @@ def get_grades_from_page(driver, results):
                             mark_num = int(mark_num)
                             results[subj_txt].append(mark_num)
                             print(f"Найдена оценка: {subj_txt} - {mark_num}")
+                    elif is_ts_half_year and subj_txt in results:
+                        # режим полугодовых: предметы, встречающиеся >=2 раза, игнорируем
+                        pass
                     else:
                         print(f"\033[33mНеизвестный предмет: {subj_txt}\033[0m (оценка {mark_num})")
     
@@ -297,9 +304,14 @@ if __name__ == "__main__":
         time.sleep(random.uniform(0.5, 1.2))
         if not go_to_prev_page(driver):
             break
-        if switch_to_previous_quarter(driver): # TODO: написать отдельную обработку четвертных и получетвертных оценок
-            is_quarter_even = True
-            pass
+    if switch_to_previous_quarter(driver): # TODO: написать отдельную обработку четвертных и получетвертных оценок
+        unique_subjects = get_unique_subjects(driver)
+        for i in range(12):
+            get_grades_from_page(driver, results, unique_subjects)
+            time.sleep(random.uniform(0.5, 1.2))
+            if not go_to_prev_page(driver):
+                break
+        pass
     print("-" * 50)
     write_json(results)
     time.sleep(random.uniform(5, 10))
