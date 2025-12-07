@@ -230,6 +230,27 @@ def switch_to_previous_quarter(driver):
     except Exception as e:
         print(f"\033[31mНеизвестная ошибка: {e}\033[0m")
         return False
+    
+def get_unique_subjects(driver):
+    """Возвращает список предметов, встречающихся один раз за неделю, без пробелов в названиях"""
+    subjects_counter = {}
+    
+    # Получаем все ячейки с уроками
+    lesson_cells = driver.find_elements(By.CSS_SELECTOR, "td.lesson span")
+    
+    for cell in lesson_cells:
+        text = cell.text.strip()
+        
+        # Извлекаем название предмета (часть после номера урока)
+        if '.' in text:
+            subject = text.split('.', 1)[1].strip()
+            subject_key = subject.replace(' ', '')
+            
+            # Считаем количество встреч
+            subjects_counter[subject_key] = subjects_counter.get(subject_key, 0) + 1
+    
+    # Возвращаем предметы, которые встретились ровно один раз
+    return [subject for subject, count in subjects_counter.items() if count == 1]
 
 def write_json(res):
     if getattr(sys, 'frozen', False):  # если запущено как .exe
@@ -277,6 +298,7 @@ if __name__ == "__main__":
         if not go_to_prev_page(driver):
             break
         if switch_to_previous_quarter(driver): # TODO: написать отдельную обработку четвертных и получетвертных оценок
+            is_quarter_even = True
             pass
     print("-" * 50)
     write_json(results)
