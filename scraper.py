@@ -174,6 +174,62 @@ def go_to_prev_page(driver):
     print(f"\033[36mПереключились на неделю: {new_week_text}\033[0m")
     return True
 
+def switch_to_previous_quarter(driver):
+    try:
+        # получаем панель с четвертями
+        quarters = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "tabs2"))
+        )
+    except TimeoutException:
+        print("\033[31mНе найден HUD смены четверти\033[0m")
+        return False
+
+    try:
+        # Находим активный элемент и ссылку в нем
+        active_link = quarters.find_element(By.CSS_SELECTOR, "li.active > a")
+        active_quarter_text = active_link.text.strip()
+        active_id = active_link.get_attribute("quarter_id")
+        
+        print(f"Текущая четверть: {active_quarter_text} (ID: {active_id})")
+        
+        # Проверяем, нужно ли переключать
+        if "2" in active_quarter_text or "4" in active_quarter_text:
+            target_id = str(int(active_id) - 1)
+            
+            # Добавляем try/except для этого поиска
+            try:
+                target_button = quarters.find_element(
+                    By.CSS_SELECTOR, f"a[quarter_id='{target_id}']"
+                )
+                target_button.click()
+                
+                # Уменьшаем время ожидания
+                WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, f"li.active a[quarter_id='{target_id}']")
+                    )
+                )
+                
+                print(f"\033[32mУспешно переключено на четверть ID {target_id}\033[0m")
+                return True
+                    
+            except (NoSuchElementException, TimeoutException):
+                print(f"\033[31mЧетверть ID {target_id} не найдена или не переключилась\033[0m")
+                return False
+                    
+            except ValueError:
+                print("\033[31mОшибка: quarter_id не является числом\033[0m")
+                return False
+        else:
+            print("\033[33mНе нужно переключать (не 2-я и не 4-я четверть)\033[0m")
+            return False
+            
+    except NoSuchElementException as e:
+        print(f"\033[31mОшибка поиска элемента: {e}\033[0m")
+        return False
+    except Exception as e:
+        print(f"\033[31mНеизвестная ошибка: {e}\033[0m")
+        return False
 
 def write_json(res):
     if getattr(sys, 'frozen', False):  # если запущено как .exe
@@ -220,8 +276,9 @@ if __name__ == "__main__":
         time.sleep(random.uniform(0.5, 1.2))
         if not go_to_prev_page(driver):
             break
-        print("-" * 50)
-
+        if switch_to_previous_quarter(driver): # TODO: написать отдельную обработку четвертных и получетвертных оценок
+            pass
+    print("-" * 50)
     write_json(results)
     time.sleep(random.uniform(5, 10))
     driver.quit()
