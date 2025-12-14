@@ -63,7 +63,7 @@ results = {
     "Ист.Бел.вкон.всем.ист.": [],
     "Физика": [],
     "Англ.яз.": [],
-    "Физ.к.и.зд.": [],
+    "Физ.к.изд.": [],
     "Бел.яз.": [],
     "Бел.лит.": [],
     "Химия": [],
@@ -76,21 +76,30 @@ results = {
     "Информ.": []
     }
 
-def get_visible_week(driver):
-    try: # получаем активную неделю по стилю и классу
-        week_element = WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".db_week:not([style])"))
+def get_visible_week(driver): # проблема тут, в строке 87
+    try:
+        active_quarter = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".db_quarter:not([style])"))
         )
     except TimeoutException:
-        week_element = driver.find_element(By.CLASS_NAME, "db_week")
+        return "\033[31mНе найдена активная четверть\033[0m"
+    try: # получаем активную неделю по стилю и классу внутри активной четверти
+        week_element = active_quarter.find_element(By.CSS_SELECTOR, ".db_week:not([style])")
+    except NoSuchElementException:
+        print("Не найдена активная неделя без CSS - возвращаем последнюю")
+        week_element = active_quarter.find_element(By.CLASS_NAME, "db_week")
     return week_element
 
+# !!! Вылетает ошибка, когда передаётся не пустой список |
+#                                                       \/
 
 def get_grades_from_page(driver, results, unique_subj=None):
     is_ts_half_year = unique_subj is not None
     if unique_subj is None:  # по умолчанию список для сверки равен итоговому словарю, но если мы проверяем полугодовые, то сверяем по уникальным оценкам
         # если список не передали — сверяем по results
         unique_subj = results
+    else:
+        pass
     week_element = get_visible_week(driver)
     try:
         date_text = week_element.find_element(By.CLASS_NAME, "db_period").text.strip()
@@ -190,7 +199,6 @@ def switch_to_previous_quarter(driver):
     except TimeoutException:
         print("\033[31mНе найден HUD смены четверти\033[0m")
         return False
-
     try:
         # Находим активный элемент и ссылку в нем
         active_link = quarters.find_element(By.CSS_SELECTOR, "li.active > a")
@@ -210,7 +218,6 @@ def switch_to_previous_quarter(driver):
                 )
                 target_button.click()
                 
-                # Уменьшаем время ожидания
                 WebDriverWait(driver, 3).until(
                     EC.presence_of_element_located(
                         (By.CSS_SELECTOR, f"li.active a[quarter_id='{target_id}']")
@@ -218,8 +225,22 @@ def switch_to_previous_quarter(driver):
                 )
                 
                 print(f"\033[32mУспешно переключено на четверть ID {target_id}\033[0m")
-                return True
-                    
+                try:
+                    time.sleep(2)
+                    '''
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, ".db_quarter[style*='display:none']"))
+                    )
+                    '''
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located(
+                            (By.CSS_SELECTOR, ".db_quarter[style*='display: none']")
+                        )
+                    )
+                    return True
+                except (NoSuchElementException, TimeoutException, NoSuchElementException):
+                    print("JS ещё не загрузил контент страницы")
+                    return False
             except (NoSuchElementException, TimeoutException):
                 print(f"\033[31mЧетверть ID {target_id} не найдена или не переключилась\033[0m")
                 return False
@@ -237,13 +258,40 @@ def switch_to_previous_quarter(driver):
     except Exception as e:
         print(f"\033[31mНеизвестная ошибка: {e}\033[0m")
         return False
+'''
+def get_unique_subjects(driver):
+    """Возвращает список предметов, встречающихся один раз за неделю, без пробелов в названиях"""
+    subjects_counter = {}
+
+    unique_subjects = []
     
+    active_week = get_visible_week(driver)
+
+    lesson_cells = active_week.find_elements(By.CSS_SELECTOR, "td.lesson span")
+    
+    for cell in lesson_cells:
+        text = cell.text.strip()
+        
+        # Извлекаем название предмета (часть после номера урока)
+        if '.' in text:
+            subject = text.split('.', 1)[1].strip()
+            subject_key = subject.replace(' ', '')
+            
+            # Считаем количество встреч
+            subjects_counter[subject_key] = subjects_counter.get(subject_key, 0) + 1
+    
+    # Возвращаем предметы, которые встретились ровно один раз
+    return unique_subjects
+'''
+
 def get_unique_subjects(driver):
     """Возвращает список предметов, встречающихся один раз за неделю, без пробелов в названиях"""
     subjects_counter = {}
     
     # Получаем все ячейки с уроками
-    lesson_cells = driver.find_elements(By.CSS_SELECTOR, "td.lesson span")
+    active_week = get_visible_week(driver)
+
+    lesson_cells = active_week.find_elements(By.CSS_SELECTOR, "td.lesson span")
     
     for cell in lesson_cells:
         text = cell.text.strip()
@@ -306,6 +354,7 @@ if __name__ == "__main__":
             break
     if switch_to_previous_quarter(driver): # TODO: написать отдельную обработку четвертных и получетвертных оценок
         unique_subjects = get_unique_subjects(driver)
+        print(unique_subjects)
         for i in range(12):
             get_grades_from_page(driver, results, unique_subjects)
             time.sleep(random.uniform(0.5, 1.2))
@@ -314,7 +363,7 @@ if __name__ == "__main__":
         pass
     print("-" * 50)
     write_json(results)
-    time.sleep(random.uniform(5, 10))
+    time.sleep(random.uniform(1, 5))
     driver.quit()
     calculate.main()
     print("\033[32mПрограмма выполнена\033[0m")
