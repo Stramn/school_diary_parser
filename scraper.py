@@ -27,12 +27,22 @@ profile_dir = Path.cwd() / "chrome_profile"
 profile_dir.mkdir(parents=True, exist_ok=True)
 options.add_argument(f"--user-data-dir={str(profile_dir)}")
 
+def load_env():
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    env_path = os.path.join(base_dir, "login_data.env")
+    load_dotenv(env_path)
 
 def log_in(driver):
-    # Загружаем логин и пароль из .env
-    load_dotenv(os.path.join(os.getcwd(), "default.env.txt"))
+    load_env()
     LOGIN = os.getenv("LOGIN")
     PASSWORD = os.getenv("PASSWORD")
+
+    if not LOGIN or not PASSWORD:
+        raise RuntimeError("LOGIN или PASSWORD не заданы в login_data.env")
     time.sleep(random.uniform(2.5, 4.5))
     # Вводим логин и пароль
     try:
@@ -50,11 +60,14 @@ def log_in(driver):
     )
     time.sleep(random.uniform(0.5, 1.5))
     login_submit.click()
-    refuse_button = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.ID, "refuse-cookies"))
-    )
-    time.sleep(random.uniform(0.5, 1.2))
-    refuse_button.click()
+    try:
+        refuse_button = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.ID, "refuse-cookies"))
+        )
+        time.sleep(random.uniform(0.5, 1.2))
+        refuse_button.click()
+    except TimeoutException:
+        pass
 
 
 results = {
@@ -76,7 +89,7 @@ results = {
     "Информ.": []
     }
 
-def get_visible_week(driver): # проблема тут, в строке 87
+def get_visible_week(driver):
     try:
         active_quarter = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".db_quarter:not([style])"))
@@ -89,9 +102,6 @@ def get_visible_week(driver): # проблема тут, в строке 87
         print("Не найдена активная неделя без CSS - возвращаем последнюю")
         week_element = active_quarter.find_element(By.CLASS_NAME, "db_week")
     return week_element
-
-# !!! Вылетает ошибка, когда передаётся не пустой список |
-#                                                       \/
 
 def get_grades_from_page(driver, results, unique_subj=None):
     is_ts_half_year = unique_subj is not None
@@ -131,7 +141,7 @@ def get_grades_from_page(driver, results, unique_subj=None):
                 mark_num = strong_tags[0].text.strip()
                 
                 # Если нашли оценку, ищем предмет
-                if mark_num:
+                if mark_num and "н" not in mark_num:
                     lesson_cell = row.find_element(By.CLASS_NAME, "lesson")
                     # Извлекаем текст предмета (убираем номер урока)
                     lesson_text = lesson_cell.text.strip()
@@ -354,7 +364,7 @@ if __name__ == "__main__":
             break
     if switch_to_previous_quarter(driver): # TODO: написать отдельную обработку четвертных и получетвертных оценок
         unique_subjects = get_unique_subjects(driver)
-        print(unique_subjects)
+        print(f"Полугодовые предметы: {unique_subjects}")
         for i in range(12):
             get_grades_from_page(driver, results, unique_subjects)
             time.sleep(random.uniform(0.5, 1.2))
